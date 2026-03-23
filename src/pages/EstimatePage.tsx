@@ -4,11 +4,12 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { usePriceSheet } from '../hooks/usePriceSheet'
 import { computeTotals, computeLineItemTotal } from '../lib/calculations'
-import { formatCurrency } from '../lib/formatters'
+import { formatCurrency, generateInvoiceNumber } from '../lib/formatters'
 import { CATEGORY_COLORS, UNIT_OPTIONS } from '../lib/constants'
 import { StatusBadge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
-import type { Estimate, LineItem, EstimateStatus, PricingMode, PriceSheetItem } from '../types'
+import { InvoicePanel } from '../components/invoice/InvoicePanel'
+import type { Estimate, LineItem, EstimateStatus, PricingMode, PriceSheetItem, PaymentMethod } from '../types'
 
 export function EstimatePage() {
   const { id } = useParams<{ id: string }>()
@@ -127,9 +128,92 @@ export function EstimatePage() {
     setEstimate((e) => e ? { ...e, lineItems: e.lineItems.filter((li) => li.id !== itemId) } : e)
   }
 
+  async function convertToInvoice() {
+    if (!estimate) return
+    // Count all invoices for this user to generate the invoice number
+    const { count } = await supabase
+      .from('estimates')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user!.id)
+      .not('invoice_number', 'is', null)
+    const invoiceNum = generateInvoiceNumber((count ?? 0) + 1)
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + 30)
+    const dueDateStr = dueDate.toISOString().split('T')[0]
+    const fields = {
+      status: 'invoiced' as EstimateStatus,
+      invoice_number: invoiceNum,
+      invoiced_at: new Date().toISOString(),
+      due_date: dueDateStr,
+    }
+    setEstimate((e) => e ? { ...e, status: 'invoiced', invoiceNumber: invoiceNum, invoicedAt: fields.invoiced_at, dueDate: dueDateStr } : e)
+    await supabase.from('estimates').update(fields).eq('id', id!)
+    // Fire-and-forget QBO invoice push
+    if (estimate.client?.qboCustomerId) {
+      fetch('/api/qbo-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user!.id, type: 'invoice', estimateId: id }),
+      }).catch(console.error)
+    }
+  }
+
+  async function handleAddPayment(amount: number, method: PaymentMethod, note: string) {
+    if (!id || !estimate) return
+    const { data, error } = await supabase
+      .from('payments')
+      .insert({
+        estimate_id: id,
+        amount,
+        method,
+        note: note || null,
+        received_at: new Date().toISOString(),
+      })
+      .select()
+      .single()
+    if (error || !data) return
+    const newPayment = {
+      id: data.id, estimateId: data.estimate_id, amount: data.amount,
+      method: data.method, receivedAt: data.received_at, note: data.note,
+      qboPaymentId: data.qbo_payment_id, createdAt: data.created_at,
+    }
+    const updatedPayments = [...estimate.payments, newPayment]
+    const totalPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0)
+    const grandTotal = computeTotals(estimate).grandTotal
+    // Auto-flip to paid if balance cleared
+    const newStatus = totalPaid >= grandTotal ? ('paid' as EstimateStatus) : estimate.status
+    if (newStatus === 'paid') {
+      await supabase.from('estimates').update({ status: 'paid' }).eq('id', id)
+    }
+    setEstimate((e) => e ? { ...e, payments: updatedPayments, status: newStatus } : e)
+    // Fire-and-forget QBO payment push
+    fetch('/api/qbo-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user!.id, type: 'payment', paymentId: data.id, estimateId: id }),
+    }).catch(console.error)
+  }
+
+  async function handleDeletePayment(paymentId: string) {
+    await supabase.from('payments').delete().eq('id', paymentId)
+    setEstimate((e) => e ? { ...e, payments: e.payments.filter((p) => p.id !== paymentId) } : e)
+  }
+
   async function updateStatus(status: EstimateStatus) {
+    if (status === 'invoiced') {
+      await convertToInvoice()
+      return
+    }
     setEstimate((e) => e ? { ...e, status } : e)
     await saveField({ status })
+    // Push QBO customer when approved
+    if (status === 'approved' && estimate?.client) {
+      fetch('/api/qbo-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user!.id, type: 'customer', clientId: estimate.client.id }),
+      }).catch(console.error)
+    }
   }
 
   async function updatePricingMode(pricingMode: PricingMode) {
@@ -269,6 +353,19 @@ export function EstimatePage() {
             }}
           />
         </div>
+
+        {/* Invoice panel */}
+        {(estimate.status === 'invoiced' || estimate.status === 'paid') && (
+          <div className="mb-6">
+            <InvoicePanel
+              estimate={estimate}
+              grandTotal={totals.grandTotal}
+              totalPaid={totals.totalPaid}
+              onAddPayment={handleAddPayment}
+              onDeletePayment={handleDeletePayment}
+            />
+          </div>
+        )}
 
         {/* Pricing strategy + overhead */}
         <div className="grid sm:grid-cols-2 gap-4 mb-6">
