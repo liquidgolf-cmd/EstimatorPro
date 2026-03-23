@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AuthPage } from './pages/AuthPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { NewEstimatePage } from './pages/NewEstimatePage'
+import { EstimatePage } from './pages/EstimatePage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -43,9 +45,7 @@ function AppRoutes() {
         path="/estimates/new"
         element={
           <ProtectedRoute>
-            <div className="min-h-screen bg-bg flex items-center justify-center">
-              <p className="text-text-muted">Estimate builder — coming in Session 3</p>
-            </div>
+            <NewEstimatePage />
           </ProtectedRoute>
         }
       />
@@ -53,9 +53,7 @@ function AppRoutes() {
         path="/estimates/:id"
         element={
           <ProtectedRoute>
-            <div className="min-h-screen bg-bg flex items-center justify-center">
-              <p className="text-text-muted">Estimate view — coming in Session 3</p>
-            </div>
+            <EstimatePage />
           </ProtectedRoute>
         }
       />
