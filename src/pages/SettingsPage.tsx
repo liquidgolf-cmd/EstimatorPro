@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useProfile } from '../hooks/useProfile'
 import { supabase } from '../lib/supabase'
 import { Button } from '../components/ui/Button'
 
@@ -8,6 +9,10 @@ export function SettingsPage() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { profile, loading: profileLoading, updateProfile } = useProfile()
+  const [profileForm, setProfileForm] = useState({ businessName: '', phone: '', email: '' })
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileSaved, setProfileSaved] = useState(false)
   const [qboConnected, setQboConnected] = useState(false)
   const [qboLoading, setQboLoading] = useState(true)
   const [banner, setBanner] = useState<'connected' | 'error' | null>(null)
@@ -18,6 +23,16 @@ export function SettingsPage() {
     if (qboParam === 'connected') setBanner('connected')
     if (qboParam === 'error') setBanner('error')
   }, [searchParams])
+
+  useEffect(() => {
+    if (profile) {
+      setProfileForm({
+        businessName: profile.businessName,
+        phone: profile.phone,
+        email: profile.email,
+      })
+    }
+  }, [profile])
 
   useEffect(() => {
     if (!user) return
@@ -32,6 +47,14 @@ export function SettingsPage() {
     }
     checkQbo()
   }, [user])
+
+  async function handleSaveProfile() {
+    setProfileSaving(true)
+    await updateProfile(profileForm)
+    setProfileSaving(false)
+    setProfileSaved(true)
+    setTimeout(() => setProfileSaved(false), 2000)
+  }
 
   async function handleQboConnect() {
     window.location.href = `/api/qbo-auth?userId=${user?.id}`
@@ -79,18 +102,74 @@ export function SettingsPage() {
           </div>
         )}
 
-        {/* Account section */}
-        <section className="bg-surface border border-border rounded-xl divide-y divide-border">
-          <div className="px-6 py-4">
-            <h2 className="font-semibold text-text-primary mb-0.5">Account</h2>
-            <p className="text-sm text-text-muted">{user?.email}</p>
-          </div>
-          <div className="px-6 py-4">
-            <Button variant="ghost" onClick={signOut} className="text-sm text-red-600 hover:text-red-700">
-              Sign out
-            </Button>
-          </div>
-        </section>
+        {/* Business profile */}
+        <div className="bg-surface border border-border rounded-xl p-6">
+          <h2 className="font-bold text-text-primary mb-1">Business profile</h2>
+          <p className="text-sm text-text-muted mb-5">
+            This info appears on your PDF estimates and invoices.
+          </p>
+
+          {profileLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-12 bg-bg rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="block text-xs font-medium text-text-muted uppercase tracking-wider mb-1.5">
+                  Business name <span className="text-accent">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={profileForm.businessName}
+                  placeholder="LM Finishing and Construction"
+                  onChange={(e) => setProfileForm((f) => ({ ...f, businessName: e.target.value }))}
+                  className="w-full px-4 py-3 bg-bg border border-border rounded-lg text-sm text-text-primary placeholder-text-faint focus:outline-none focus:border-accent transition-colors"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-text-muted uppercase tracking-wider mb-1.5">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={profileForm.phone}
+                    placeholder="(801) 555-0100"
+                    onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value }))}
+                    className="w-full px-4 py-3 bg-bg border border-border rounded-lg text-sm text-text-primary placeholder-text-faint focus:outline-none focus:border-accent transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-text-muted uppercase tracking-wider mb-1.5">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={profileForm.email}
+                    placeholder="you@company.com"
+                    onChange={(e) => setProfileForm((f) => ({ ...f, email: e.target.value }))}
+                    className="w-full px-4 py-3 bg-bg border border-border rounded-lg text-sm text-text-primary placeholder-text-faint focus:outline-none focus:border-accent transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <Button onClick={handleSaveProfile} loading={profileSaving}>
+                  {profileSaved ? '✓ Saved' : 'Save profile'}
+                </Button>
+                <button
+                  onClick={signOut}
+                  className="text-sm text-text-muted hover:text-text-primary transition-colors"
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* QuickBooks section */}
         <section className="bg-surface border border-border rounded-xl">

@@ -97,6 +97,14 @@ export interface PriceSheetItem {
   sortOrder: number
 }
 
+export interface Profile {
+  id: string
+  businessName: string
+  phone: string
+  email: string
+  updatedAt: string
+}
+
 // Computed client-side — never stored
 export interface EstimateTotals {
   materialsCost: number

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { usePriceSheet } from '../hooks/usePriceSheet'
+import { useProfile } from '../hooks/useProfile'
 import { computeTotals, computeLineItemTotal } from '../lib/calculations'
 import { formatCurrency, generateInvoiceNumber } from '../lib/formatters'
 import { CATEGORY_COLORS, UNIT_OPTIONS } from '../lib/constants'
@@ -10,6 +11,7 @@ import { StatusBadge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { InvoicePanel } from '../components/invoice/InvoicePanel'
 import { PDFDownloadButton } from '../components/pdf/PDFDownloadButton'
+import { MobileItemPicker } from '../components/estimates/MobileItemPicker'
 import type { Estimate, LineItem, EstimateStatus, PricingMode, PriceSheetItem, PaymentMethod } from '../types'
 
 export function EstimatePage() {
@@ -17,6 +19,7 @@ export function EstimatePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const { items: priceSheet } = usePriceSheet()
+  const { profile } = useProfile()
 
   const [estimate, setEstimate] = useState<Estimate | null>(null)
   const [loading, setLoading] = useState(true)
@@ -272,8 +275,9 @@ export function EstimatePage() {
           {saving && <span className="text-xs text-text-faint">Saving...</span>}
           <PDFDownloadButton
             estimate={estimate}
-            contractorName="LM Finishing and Construction"
-            contractorEmail={user?.email}
+            contractorName={profile?.businessName || user?.email || 'Contractor'}
+            contractorEmail={profile?.email || user?.email}
+            contractorPhone={profile?.phone}
             className="text-text-muted hover:text-accent"
           />
           <StatusDropdown status={estimate.status} onChange={updateStatus} />
@@ -502,111 +506,201 @@ function CategorySection({
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
+  const [showMobilePicker, setShowMobilePicker] = useState(false)
   const [query, setQuery] = useState('')
   const color = CATEGORY_COLORS[category] ?? '#8a7968'
   const categoryTotal = lineItems.reduce((sum, li) => sum + computeLineItemTotal(li), 0)
   const categoryItems = priceSheet.filter((i) => i.category === category)
   const filtered = categoryItems.filter((i) => i.description.toLowerCase().includes(query.toLowerCase()))
 
+  const isMobile = window.innerWidth < 640
+
+  function handleAddClick() {
+    if (isMobile) {
+      setShowMobilePicker(true)
+    } else {
+      setShowSearch(true)
+    }
+  }
+
   return (
-    <div className="bg-surface border border-border rounded-xl overflow-hidden">
-      {/* Category header */}
-      <div
-        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-bg transition-colors"
-        onClick={() => setCollapsed((c) => !c)}
-        style={{ borderLeft: `3px solid ${color}` }}
-      >
-        <div className="flex items-center gap-3">
-          <svg className={`transition-transform ${collapsed ? '-rotate-90' : ''}`} width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M2 4l4 4 4-4" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-md" style={{ color, background: color + '18' }}>
-            {category}
-          </span>
-          <span className="text-xs text-text-muted">{lineItems.length} items</span>
+    <>
+      <div className="bg-surface border border-border rounded-xl overflow-hidden">
+        {/* Category header */}
+        <div
+          className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-bg transition-colors"
+          onClick={() => setCollapsed((c) => !c)}
+          style={{ borderLeft: `3px solid ${color}` }}
+        >
+          <div className="flex items-center gap-3">
+            <svg className={`transition-transform ${collapsed ? '-rotate-90' : ''}`} width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 4l4 4 4-4" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-md" style={{ color, background: color + '18' }}>
+              {category}
+            </span>
+            <span className="text-xs text-text-muted">{lineItems.length} items</span>
+          </div>
+          <span className="font-bold text-sm" style={{ color }}>{formatCurrency(categoryTotal)}</span>
         </div>
-        <span className="font-bold text-sm" style={{ color }}>{formatCurrency(categoryTotal)}</span>
+
+        {!collapsed && (
+          <div>
+            {/* Desktop table view */}
+            {lineItems.length > 0 && (
+              <div className="overflow-x-auto hidden sm:block">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-t border-border bg-bg text-text-muted">
+                      <th className="text-left px-4 py-2 font-medium">Description</th>
+                      <th className="text-center px-2 py-2 font-medium w-14">Qty</th>
+                      <th className="text-center px-2 py-2 font-medium w-14">Unit</th>
+                      <th className="text-center px-2 py-2 font-medium w-20">Mat $/U</th>
+                      <th className="text-center px-2 py-2 font-medium w-14">Hrs</th>
+                      <th className="text-center px-2 py-2 font-medium w-16">$/Hr</th>
+                      <th className="text-right px-4 py-2 font-medium w-24">Total</th>
+                      <th className="w-8" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {lineItems.map((li) => (
+                      <LineItemRow
+                        key={li.id}
+                        item={li}
+                        onUpdate={onUpdateItem}
+                        onDelete={onDeleteItem}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Mobile card view */}
+            {lineItems.length > 0 && (
+              <div className="sm:hidden divide-y divide-border">
+                {lineItems.map((li) => (
+                  <MobileLineItemCard
+                    key={li.id}
+                    item={li}
+                    onUpdate={onUpdateItem}
+                    onDelete={onDeleteItem}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Add item */}
+            <div className="px-4 py-3 border-t border-border">
+              {showSearch && !isMobile ? (
+                <div>
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder={`Search ${category} services...`}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-xs text-text-primary placeholder-text-faint focus:outline-none focus:border-accent mb-2 transition-colors"
+                  />
+                  <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                    {filtered.length === 0 ? (
+                      <p className="text-xs text-text-faint py-2 text-center">No items found</p>
+                    ) : (
+                      filtered.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => { onAddItem(item); setShowSearch(false); setQuery('') }}
+                          className="text-left px-3 py-2 rounded-lg hover:bg-bg text-xs text-text-primary flex items-center justify-between group transition-colors"
+                        >
+                          <span>{item.description}</span>
+                          <span className="text-text-faint group-hover:text-accent">{item.unit}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  <button onClick={() => { setShowSearch(false); setQuery('') }} className="text-xs text-text-faint hover:text-text-muted mt-2 transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleAddClick}
+                  className="flex items-center gap-2 text-xs font-medium text-text-muted hover:text-accent transition-colors py-1"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.2"/>
+                    <path d="M7 4.5v5M4.5 7h5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                  </svg>
+                  Add {category} item
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Line items table */}
-      {!collapsed && (
-        <div>
-          {lineItems.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-t border-border bg-bg text-text-muted">
-                    <th className="text-left px-4 py-2 font-medium">Description</th>
-                    <th className="text-center px-2 py-2 font-medium w-14">Qty</th>
-                    <th className="text-center px-2 py-2 font-medium w-14">Unit</th>
-                    <th className="text-center px-2 py-2 font-medium w-20">Mat $/U</th>
-                    <th className="text-center px-2 py-2 font-medium w-14">Hrs</th>
-                    <th className="text-center px-2 py-2 font-medium w-16">$/Hr</th>
-                    <th className="text-right px-4 py-2 font-medium w-24">Total</th>
-                    <th className="w-8" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {lineItems.map((li) => (
-                    <LineItemRow
-                      key={li.id}
-                      item={li}
-                      onUpdate={onUpdateItem}
-                      onDelete={onDeleteItem}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+      {/* Mobile bottom sheet */}
+      <MobileItemPicker
+        open={showMobilePicker}
+        category={category}
+        priceSheet={priceSheet}
+        onSelect={(item) => { onAddItem(item); setShowMobilePicker(false) }}
+        onClose={() => setShowMobilePicker(false)}
+      />
+    </>
+  )
+}
 
-          {/* Add item */}
-          <div className="px-4 py-3 border-t border-border">
-            {showSearch ? (
-              <div>
-                <input
-                  autoFocus
-                  type="text"
-                  placeholder={`Search ${category} services...`}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="w-full px-3 py-2 bg-bg border border-border-mid rounded-lg text-xs text-text-primary placeholder-text-faint focus:outline-none focus:border-accent mb-2 transition-colors"
-                />
-                <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-                  {filtered.length === 0 ? (
-                    <p className="text-xs text-text-faint py-2 text-center">No items found</p>
-                  ) : (
-                    filtered.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => { onAddItem(item); setShowSearch(false); setQuery('') }}
-                        className="text-left px-3 py-2 rounded-lg hover:bg-bg text-xs text-text-primary flex items-center justify-between group transition-colors"
-                      >
-                        <span>{item.description}</span>
-                        <span className="text-text-faint group-hover:text-accent">{item.unit}</span>
-                      </button>
-                    ))
-                  )}
-                </div>
-                <button onClick={() => { setShowSearch(false); setQuery('') }} className="text-xs text-text-faint hover:text-text-muted mt-2 transition-colors">
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowSearch(true)}
-                className="flex items-center gap-2 text-xs font-medium text-text-muted hover:text-accent transition-colors"
-              >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.2"/>
-                  <path d="M7 4.5v5M4.5 7h5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                </svg>
-                Add {category} item
-              </button>
-            )}
-          </div>
+function MobileLineItemCard({
+  item, onUpdate, onDelete,
+}: {
+  item: LineItem
+  onUpdate: (id: string, field: keyof LineItem, value: number | string) => void
+  onDelete: (id: string) => void
+}) {
+  const total = computeLineItemTotal(item)
+
+  return (
+    <div className="px-4 py-3 bg-surface">
+      {/* Description row */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <input
+          defaultValue={item.description}
+          onBlur={(e) => onUpdate(item.id, 'description', e.target.value)}
+          className="flex-1 bg-transparent text-sm font-medium text-text-primary focus:outline-none"
+        />
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-sm font-bold text-text-primary">{formatCurrency(total)}</span>
+          <button
+            onClick={() => onDelete(item.id)}
+            className="text-text-faint hover:text-red-400 transition-colors p-1"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+          </button>
         </div>
-      )}
+      </div>
+
+      {/* Fields row */}
+      <div className="grid grid-cols-4 gap-2">
+        {[
+          { label: 'Qty', field: 'qty' as keyof LineItem, value: item.qty },
+          { label: 'Mat $', field: 'matPerUnit' as keyof LineItem, value: item.matPerUnit },
+          { label: 'Hrs', field: 'hours' as keyof LineItem, value: item.hours },
+          { label: '$/Hr', field: 'ratePerHr' as keyof LineItem, value: item.ratePerHr },
+        ].map(({ label, field, value }) => (
+          <div key={field} className="bg-bg rounded-lg px-2 py-2 text-center">
+            <p className="text-[10px] text-text-faint mb-1">{label}</p>
+            <input
+              type="number"
+              defaultValue={value as number}
+              onBlur={(e) => onUpdate(item.id, field, parseFloat(e.target.value) || 0)}
+              className="w-full bg-transparent text-xs text-text-primary text-center focus:outline-none"
+            />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

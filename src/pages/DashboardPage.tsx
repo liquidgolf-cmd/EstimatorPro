@@ -91,7 +91,7 @@ export function DashboardPage() {
             </svg>
           </button>
           <span className="text-sm text-text-muted hidden sm:block">{user?.email}</span>
-          <Button variant="ghost" onClick={signOut} className="text-sm">
+          <Button variant="ghost" onClick={signOut} className="text-sm hidden sm:inline-flex">
             Sign out
           </Button>
         </div>
@@ -113,7 +113,7 @@ export function DashboardPage() {
         </div>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
           <SummaryCard
             label="Total quoted"
             value={formatCurrency(totalQuoted)}
@@ -185,6 +185,18 @@ export function DashboardPage() {
           </div>
         )}
       </main>
+
+      {/* Mobile FAB */}
+      <div className="fixed bottom-6 right-6 sm:hidden z-30">
+        <button
+          onClick={() => navigate('/estimates/new')}
+          className="w-14 h-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center hover:bg-accent-dark transition-colors active:scale-95"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M12 5v14M5 12h14" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
     </div>
   )
 }

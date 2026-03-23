@@ -9,6 +9,7 @@ interface ClientStepProps {
   onComplete: (client: Client) => void
   onBack: () => void
   saving: boolean
+  saveError?: string | null
   onCreateClient: (data: Omit<Client, 'id' | 'userId' | 'createdAt'>) => Promise<Client>
 }
 
@@ -20,6 +21,7 @@ export function ClientStep({
   onComplete,
   onBack,
   saving,
+  saveError,
   onCreateClient,
 }: ClientStepProps) {
   const [mode, setMode] = useState<Mode>(existingClients.length > 0 ? 'search' : 'new')
@@ -183,6 +185,11 @@ export function ClientStep({
             {createError && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
                 {createError}
+              </p>
+            )}
+            {saveError && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                {saveError}
               </p>
             )}
             <Button onClick={handleCreate} loading={creating || saving} className="w-full mt-2">

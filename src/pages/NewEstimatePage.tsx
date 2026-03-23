@@ -17,6 +17,7 @@ export function NewEstimatePage() {
   const [step, setStep] = useState<Step>('type')
   const [projectType, setProjectType] = useState<ProjectType | null>(null)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   async function handleClientComplete(client: Client) {
     if (!user || !projectType) return
@@ -49,8 +50,10 @@ export function NewEstimatePage() {
 
       if (error) throw error
       navigate(`/estimates/${data.id}`)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create estimate:', err)
+      setSaveError(err?.message ?? 'Failed to create estimate. Check your connection and try again.')
+    } finally {
       setSaving(false)
     }
   }
@@ -63,6 +66,7 @@ export function NewEstimatePage() {
         onComplete={handleClientComplete}
         onBack={() => setStep('type')}
         saving={saving}
+        saveError={saveError}
         onCreateClient={createClient}
       />
     )
