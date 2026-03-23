@@ -5,6 +5,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { NewEstimatePage } from './pages/NewEstimatePage'
 import { EstimatePage } from './pages/EstimatePage'
 import { SettingsPage } from './pages/SettingsPage'
+import { PriceSheetPage } from './pages/PriceSheetPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -63,6 +64,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <SettingsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/price-sheet"
+        element={
+          <ProtectedRoute>
+            <PriceSheetPage />
           </ProtectedRoute>
         }
       />

@@ -9,6 +9,7 @@ import { CATEGORY_COLORS, UNIT_OPTIONS } from '../lib/constants'
 import { StatusBadge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { InvoicePanel } from '../components/invoice/InvoicePanel'
+import { PDFDownloadButton } from '../components/pdf/PDFDownloadButton'
 import type { Estimate, LineItem, EstimateStatus, PricingMode, PriceSheetItem, PaymentMethod } from '../types'
 
 export function EstimatePage() {
@@ -269,6 +270,12 @@ export function EstimatePage() {
             {estimate.lineItems.length} items · {Math.round(totals.totalHours)}h
           </span>
           {saving && <span className="text-xs text-text-faint">Saving...</span>}
+          <PDFDownloadButton
+            estimate={estimate}
+            contractorName="LM Finishing and Construction"
+            contractorEmail={user?.email}
+            className="text-text-muted hover:text-accent"
+          />
           <StatusDropdown status={estimate.status} onChange={updateStatus} />
         </div>
       </header>

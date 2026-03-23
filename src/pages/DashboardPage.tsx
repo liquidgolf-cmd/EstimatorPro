@@ -71,6 +71,16 @@ export function DashboardPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
+            onClick={() => navigate('/price-sheet')}
+            className="text-text-muted hover:text-text-primary transition-colors p-1"
+            title="Price sheet"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M9 7h6M9 11h6M9 15h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+            </svg>
+          </button>
+          <button
             onClick={() => navigate('/settings')}
             className="text-text-muted hover:text-text-primary transition-colors p-1"
             title="Settings"
