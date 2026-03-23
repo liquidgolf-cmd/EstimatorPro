@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useClients } from '../hooks/useClients'
-import { useEstimates } from '../hooks/useEstimates'
 import { PROJECT_TYPES, DEFAULT_OVERHEAD_ITEMS } from '../lib/constants'
 import { generateEstimateNumber } from '../lib/formatters'
 import { ClientStep } from '../components/clients/ClientStep'
@@ -15,7 +14,6 @@ export function NewEstimatePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const { clients, createClient } = useClients()
-  const { estimates } = useEstimates()
   const [step, setStep] = useState<Step>('type')
   const [projectType, setProjectType] = useState<ProjectType | null>(null)
   const [saving, setSaving] = useState(false)
@@ -25,7 +23,12 @@ export function NewEstimatePage() {
     setSaving(true)
     try {
       const pt = PROJECT_TYPES.find((p) => p.value === projectType)
-      const estimateNumber = generateEstimateNumber(estimates.length + 1)
+      // Count estimates with a lightweight query — no joins
+      const { count } = await supabase
+        .from('estimates')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+      const estimateNumber = generateEstimateNumber((count ?? 0) + 1)
       const title = `${pt?.label ?? 'Estimate'} — ${client.name}`
 
       const { data, error } = await supabase

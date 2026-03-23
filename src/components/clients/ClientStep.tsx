@@ -27,6 +27,7 @@ export function ClientStep({
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ name: '', phone: '', email: '', companyName: '', jobSiteAddress: '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [createError, setCreateError] = useState<string | null>(null)
 
   const filtered = existingClients.filter((c) => {
     const q = query.toLowerCase()
@@ -52,6 +53,7 @@ export function ClientStep({
   async function handleCreate() {
     if (!validate()) return
     setCreating(true)
+    setCreateError(null)
     try {
       const client = await onCreateClient({
         name: form.name.trim(),
@@ -61,8 +63,9 @@ export function ClientStep({
         jobSiteAddress: form.jobSiteAddress.trim(),
       })
       onComplete(client)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create client:', err)
+      setCreateError(err?.message ?? 'Failed to save client. Check your connection and try again.')
     } finally {
       setCreating(false)
     }
@@ -177,6 +180,11 @@ export function ClientStep({
             <Input label="Job site address" required error={errors.jobSiteAddress} value={form.jobSiteAddress}
               placeholder="467 Pine Canyon Rd, Midway UT 84049"
               onChange={(e) => setForm((f) => ({ ...f, jobSiteAddress: e.target.value }))} />
+            {createError && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                {createError}
+              </p>
+            )}
             <Button onClick={handleCreate} loading={creating || saving} className="w-full mt-2">
               Create client and continue →
             </Button>
