@@ -603,20 +603,36 @@ function CategorySection({
                     className="w-full px-3 py-2 bg-bg border border-border rounded-lg text-xs text-text-primary placeholder-text-faint focus:outline-none focus:border-accent mb-2 transition-colors"
                   />
                   <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-                    {filtered.length === 0 ? (
-                      <p className="text-xs text-text-faint py-2 text-center">No items found</p>
-                    ) : (
-                      filtered.map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => { onAddItem(item); setShowSearch(false); setQuery('') }}
-                          className="text-left px-3 py-2 rounded-lg hover:bg-bg text-xs text-text-primary flex items-center justify-between group transition-colors"
-                        >
-                          <span>{item.description}</span>
-                          <span className="text-text-faint group-hover:text-accent">{item.unit}</span>
-                        </button>
-                      ))
-                    )}
+                    {filtered.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => { onAddItem(item); setShowSearch(false); setQuery('') }}
+                        className="text-left px-3 py-2 rounded-lg hover:bg-bg text-xs text-text-primary flex items-center justify-between group transition-colors"
+                      >
+                        <span>{item.description}</span>
+                        <span className="text-text-faint group-hover:text-accent">{item.unit}</span>
+                      </button>
+                    ))}
+                    {/* Always-visible custom item row */}
+                    <button
+                      onClick={() => {
+                        const custom: import('../types').PriceSheetItem = {
+                          id: '', userId: '', category, sortOrder: 0,
+                          description: query.trim() || 'New item',
+                          unit: 'LS', matPerUnit: 0, hours: 0, ratePerHr: 0, defaultQty: 1,
+                        }
+                        onAddItem(custom)
+                        setShowSearch(false)
+                        setQuery('')
+                      }}
+                      className="text-left px-3 py-2 rounded-lg border border-dashed border-border hover:border-accent/50 hover:bg-bg text-xs text-text-muted hover:text-accent flex items-center gap-2 transition-colors mt-1"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/>
+                        <path d="M6 3.5v5M3.5 6h5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                      </svg>
+                      {query.trim() ? `Add "${query.trim()}" as custom item` : 'Add blank custom item'}
+                    </button>
                   </div>
                   <button onClick={() => { setShowSearch(false); setQuery('') }} className="text-xs text-text-faint hover:text-text-muted mt-2 transition-colors">
                     Cancel

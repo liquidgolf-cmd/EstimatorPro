@@ -53,11 +53,11 @@ export function MobileItemPicker({
       </div>
 
       {/* Item list */}
-      {items.length === 0 ? (
-        <p className="text-center text-text-muted text-sm py-8">No items found</p>
-      ) : (
-        <div className="flex flex-col gap-2 pb-4">
-          {items.map((item) => {
+      <div className="flex flex-col gap-2 pb-4">
+        {items.length === 0 && (
+          <p className="text-center text-text-muted text-sm py-4">No price sheet items for this category</p>
+        )}
+        {items.map((item) => {
             const unitTotal = item.defaultQty * item.matPerUnit +
               item.defaultQty * item.hours * item.ratePerHr
             return (
@@ -87,8 +87,30 @@ export function MobileItemPicker({
               </button>
             )
           })}
-        </div>
-      )}
+
+        {/* Custom item row — always visible */}
+        <button
+          onClick={() => handleSelect({
+            id: '', userId: '', category, sortOrder: 0,
+            description: query.trim() || 'New item',
+            unit: 'LS', matPerUnit: 0, hours: 0, ratePerHr: 0, defaultQty: 1,
+          })}
+          className="w-full text-left border border-dashed border-border rounded-xl px-4 py-4 hover:border-accent/50 active:bg-border/30 transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <svg className="text-text-faint shrink-0" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2"/>
+              <path d="M8 5v6M5 8h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+            <div>
+              <p className="text-sm font-medium text-text-muted">
+                {query.trim() ? `Add "${query.trim()}" as custom item` : 'Add blank custom item'}
+              </p>
+              <p className="text-xs text-text-faint mt-0.5">Qty 1 · LS · $0 — edit inline after adding</p>
+            </div>
+          </div>
+        </button>
+      </div>
     </BottomSheet>
   )
 }
