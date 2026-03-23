@@ -39,6 +39,26 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/estimates/new"
+        element={
+          <ProtectedRoute>
+            <div className="min-h-screen bg-bg flex items-center justify-center">
+              <p className="text-text-muted">Estimate builder — coming in Session 3</p>
+            </div>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/estimates/:id"
+        element={
+          <ProtectedRoute>
+            <div className="min-h-screen bg-bg flex items-center justify-center">
+              <p className="text-text-muted">Estimate view — coming in Session 3</p>
+            </div>
+          </ProtectedRoute>
+        }
+      />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   )
